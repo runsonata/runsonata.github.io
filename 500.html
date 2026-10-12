@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Party - 500</title>
+    <link rel="stylesheet" type="text/css"
+        href="http://fonts.googleapis.com/css?family=Ubuntu:regular,bold&subset=Latin">
+    <link href="https://cdn.jsdelivr.net/npm/beercss@4.0.22/dist/cdn/beer.min.css" rel="stylesheet">
+    <script type="module" src="https://cdn.jsdelivr.net/npm/beercss@4.0.22/dist/cdn/beer.min.js"></script>
+    <script type="module"
+        src="https://cdn.jsdelivr.net/npm/material-dynamic-colors@1.1.4/dist/cdn/material-dynamic-colors.min.js"></script>
+    <link rel="apple-touch-icon" sizes="180x180" href="/fstatic/favicons/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/fstatic/favicons/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/fstatic/favicons/favicon-16x16.png">
+    <link rel="manifest" href="/fstatic/favicons/site.webmanifest">
+    <style>
+        body {
+            font-family: Ubuntu, "times new roman", times, roman, serif;
+        }
+    </style>
+</head>
+
+<body class="dark">
+    <main class="responsive">
+        <div class="medium middle-align center-align vertical absolute center middle">
+            <h1 class="no-padding">500</h1>
+            <h5 id="h-title" class="no-padding">Internal Server Error</h5>
+            <p id="p-description" class="no-padding">An internal server error occurred.</p>
+            <nav class="center-align">
+                <button id="btn-back">Go back</button>
+            </nav>
+        </div>
+    </main>
+    <script>
+        document.getElementById('btn-back').addEventListener('click', function () {
+            window.history.back();
+        });
+
+        const predefinedMessages = [
+            "Oops! Something went wrong on our end.",
+            "Our server is taking a coffee break. Please try again later.",
+            "Looks like the server is having a bad day. We're on it!",
+            "The server is currently experiencing technical difficulties. Please be patient.",
+            "This error is on me gng my bad",
+            "Server go poop. sorry :(",
+            "whoopsies server error",
+            "minor inconvenience (server error)",
+            "Somebody spilled coffee on the server. We're cleaning it up.",
+            "The server is overstimulated and needs a moment to calm down."
+        ];
+
+        const randomMessage = predefinedMessages[Math.floor(Math.random() * predefinedMessages.length)];
+        document.getElementById('p-description').textContent = randomMessage;
+    </script>
+</body>
+
+</html>

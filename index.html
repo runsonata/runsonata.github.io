@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Sonata is an all-in-one toolkit for Luau: a package manager, module loader and compiler in a single command.">
+    <link rel="stylesheet" type="text/css"
+        href="https://fonts.googleapis.com/css?family=Ubuntu:regular,bold|Ubuntu+Mono&subset=Latin">
+    <title>Sonata</title>
+    <link href="https://cdn.jsdelivr.net/npm/beercss@4.0.22/dist/cdn/beer.min.css" rel="stylesheet">
+    <script type="module" src="https://cdn.jsdelivr.net/npm/beercss@4.0.22/dist/cdn/beer.min.js"></script>
+    <script type="module"
+        src="https://cdn.jsdelivr.net/npm/material-dynamic-colors@1.1.4/dist/cdn/material-dynamic-colors.min.js"></script>
+    <link rel="apple-touch-icon" sizes="180x180" href="static/favicons/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="static/favicons/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="static/favicons/favicon-16x16.png">
+    <link rel="manifest" href="static/favicons/site.webmanifest">
+    <style>
+        html {
+            scroll-behavior: smooth;
+        }
+
+        .hero-section {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 2rem;
+        }
+
+        .hero-image {
+            width: 16rem;
+            height: 16rem;
+            object-fit: contain;
+            margin-bottom: 1rem;
+        }
+
+        .hero-divider {
+            width: 100px;
+            margin: 1.5rem auto;
+        }
+
+        body {
+            font-family: Ubuntu, "times new roman", times, roman, serif;
+        }
+
+        pre,
+        code {
+            font-family: "Ubuntu Mono", ui-monospace, monospace;
+            font-size: 1rem;
+        }
+
+        .section-title {
+            max-width: 40rem;
+            margin: 0 auto;
+        }
+
+        .section-title p {
+            opacity: 0.8;
+        }
+
+        /* Feature cards */
+        .feature {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .feature>.max {
+            flex-grow: 1;
+        }
+
+        /* Code windows */
+        .code-window {
+            overflow: hidden;
+            background-color: var(--surface-container-low);
+        }
+
+        .code-window .tabs {
+            margin: 0;
+        }
+
+        .code-body {
+            position: relative;
+        }
+
+        .code-body pre {
+            margin: 0;
+            border: none;
+            background: transparent;
+            padding: 1.25rem 3.5rem 1.25rem 1.25rem;
+            overflow-x: auto;
+            scrollbar-width: thin;
+            scrollbar-color: var(--outline-variant) transparent;
+        }
+
+        .code-body pre>code {
+            white-space: pre;
+        }
+
+        .copy-btn {
+            position: absolute;
+            top: 0.5rem;
+            right: 0.5rem;
+            margin: 0 !important;
+        }
+
+        .tk-kw { color: var(--primary); }
+        .tk-str { color: var(--tertiary); }
+        .tk-fn { color: var(--secondary); }
+        .tk-cm { color: var(--outline); }
+        .tk-out { opacity: 0.7; }
+
+        /* Built-in library tiles */
+        .module {
+            height: 100%;
+            align-items: flex-start !important;
+            border-radius: 0.75rem;
+            transition: background-color var(--speed2);
+        }
+
+        .module:hover {
+            background-color: var(--surface-container);
+        }
+
+        .module code {
+            font-weight: bold;
+            background: transparent;
+            padding: 0;
+        }
+
+        .module p {
+            margin: 0.125rem 0 0 !important;
+            opacity: 0.8;
+        }
+
+        /* Install steps */
+        .step {
+            align-items: flex-start;
+        }
+
+        .step-num {
+            flex: none;
+            width: 2rem;
+            height: 2rem;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+
+        @media (max-width: 600px) {
+            .code-window .tabs>a>i {
+                display: none;
+            }
+        }
+
+        .discord-title {
+            font-size: clamp(1.75rem, 7vw, 2.8125rem);
+        }
+
+        .discord-widget {
+            width: 350px;
+            max-width: 100%;
+            height: 500px;
+            border: 0;
+            border-radius: 1rem;
+        }
+    </style>
+</head>
+
+<body class="dark">
+    <main class="responsive">
+        <section class="hero-section">
+            <img src="static/sonata_default.png" alt="Sonata Logo Big" class="hero-image">
+            <h1 class="extra">Sonata</h1>
+            <div class="divider hero-divider"></div>
+            <h5 class="medium-margin">Luau package manager, module loader and compiler</h5>
+            <nav class="center-align wrap">
+                <a class="button extra primary round" href="#install">
+                    <i>download</i>
+                    <span>Install</span>
+                </a>
+                <a class="button extra secondary round" href="https://runsonata.github.io/docs/" target="_blank"
+                    rel="noopener">
+                    <i>menu_book</i>
+                    <span>Documentation</span>
+                </a>
+                <a class="button extra border round" href="https://github.com/runsonata/sonata" target="_blank"
+                    rel="noopener">
+                    <i>code</i>
+                    <span>GitHub</span>
+                </a>
+            </nav>
+        </section>
+
+        <!-- Features -->
+        <div class="space large"></div>
+        <hr class="medium">
+        <div class="medium-space"></div>
+        <section class="center-align section-title">
+            <h2>Why use Sonata?</h2>
+            <p class="large-text">One command, <code>sn</code>, creates projects, manages dependencies, runs your
+                code and compiles it into executables that run without Sonata installed.</p>
+        </section>
+        <div class="space"></div>
+        <section class="grid">
+            <div class="s12 m6 l4">
+                <article class="border feature">
+                    <h5><i>extension</i> Modular</h5>
+                    <p class="max">Build your own <b>modules</b> and organize <b>multi-file structured projects</b>
+                        with ease. <code>require("./util")</code> loads files relative to the script, keeping your
+                        code reusable, clear, and simple to maintain.</p>
+                    <nav><a class="link" href="https://runsonata.github.io/docs/guide/modules/" target="_blank"
+                            rel="noopener">Modules and require <i class="small">arrow_forward</i></a></nav>
+                </article>
+            </div>
+            <div class="s12 m6 l4">
+                <article class="border feature">
+                    <h5><i>package_2</i> Package Manager</h5>
+                    <p class="max"><b>Manage your dependencies</b> with the git-powered package manager. Any Git
+                        repository is a package, and a lock file pins exact commits so builds stay reproducible.</p>
+                    <nav><a class="link" href="https://runsonata.github.io/docs/guide/packages/" target="_blank"
+                            rel="noopener">Packages <i class="small">arrow_forward</i></a></nav>
+                </article>
+            </div>
+            <div class="s12 m6 l4">
+                <article class="border feature">
+                    <h5><i>inventory_2</i> Batteries included</h5>
+                    <p class="max"><b>15 built-in libraries</b> for files, processes, TLS networking, JSON, YAML,
+                        TOML, cryptography, time zones, compression, regex and more. No dependencies needed.</p>
+                    <nav><a class="link" href="#libraries">Browse libraries <i class="small">arrow_downward</i></a>
+                    </nav>
+                </article>
+            </div>
+            <div class="s12 m6 l4">
+                <article class="border feature">
+                    <h5><i>account_tree</i> Tasks</h5>
+                    <p class="max">Programs run on a <b>scheduler</b>. While one task waits on a socket, child
+                        process, timer or channel, the others keep running.</p>
+                    <nav><a class="link" href="https://runsonata.github.io/docs/guide/tasks/" target="_blank"
+                            rel="noopener">Tasks and concurrency <i class="small">arrow_forward</i></a></nav>
+                </article>
+            </div>
+            <div class="s12 m6 l4">
+                <article class="border feature">
+                    <h5><i>rocket_launch</i> Standalone executables</h5>
+                    <p class="max"><code>sn build</code> bundles your project and its dependencies into <b>one
+                            file</b> that runs anywhere, optionally with a smaller runtime holding only the libraries
+                        you use.</p>
+                    <nav><a class="link" href="https://runsonata.github.io/docs/guide/building/" target="_blank"
+                            rel="noopener">Building executables <i class="small">arrow_forward</i></a></nav>
+                </article>
+            </div>
+            <div class="s12 m6 l4">
+                <article class="border feature">
+                    <h5><i>sentiment_very_satisfied</i> Easy to use</h5>
+                    <p class="max">With Luau's simple syntax, powerful type system, and excellent performance,
+                        combined with Sonata's builtin modules and loaders, you can build anything you can imagine
+                        with ease.</p>
+                    <nav><a class="link" href="https://runsonata.github.io/docs/guide/first-project/" target="_blank"
+                            rel="noopener">Your first project <i class="small">arrow_forward</i></a></nav>
+                </article>
+            </div>
+        </section>
+
+        <!-- Code example -->
+        <div class="large-space"></div>
+        <hr class="medium">
+        <div class="medium-space"></div>
+        <section class="grid middle-align">
+            <div class="s12 l5">
+                <h2>From idea to executable</h2>
+                <p class="large-text">Scaffold a project, pull in a package straight from Git, run it, and ship a
+                    single binary. It's all the same tool.</p>
+                <ul class="list no-space">
+                    <li><i class="primary-text">create_new_folder</i>
+                        <div class="max"><code>sn init</code> scaffolds a project and its manifest</div>
+                    </li>
+                    <li><i class="primary-text">add_box</i>
+                        <div class="max"><code>sn pkg add</code> installs any Git repository</div>
+                    </li>
+                    <li><i class="primary-text">play_arrow</i>
+                        <div class="max"><code>sn run</code> runs the entry script</div>
+                    </li>
+                    <li><i class="primary-text">rocket_launch</i>
+                        <div class="max"><code>sn build</code> compiles a standalone executable</div>
+                    </li>
+                </ul>
+            </div>
+            <div class="s12 l7">
+                <article class="border round no-padding code-window">
+                    <div class="tabs left-align">
+                        <a class="active" data-ui="#code-main"><i>description</i><span>main.luau</span></a>
+                        <a data-ui="#code-terminal"><i>terminal</i><span>Terminal</span></a>
+                        <a data-ui="#code-manifest"><i>settings</i><span>project.luau</span></a>
+                    </div>
+                    <div class="page active code-body" id="code-main">
+                        <button class="transparent circle copy-btn" data-copy-target="#pre-main"
+                            aria-label="Copy code"><i>content_copy</i></button>
+<pre id="pre-main"><code><span class="tk-kw">local</span> fs = <span class="tk-fn">require</span>(<span class="tk-str">"@sonata/fs"</span>)
+<span class="tk-kw">local</span> term = <span class="tk-fn">require</span>(<span class="tk-str">"@sonata/term"</span>)
+<span class="tk-kw">local</span> task = <span class="tk-fn">require</span>(<span class="tk-str">"@sonata/task"</span>)
+
+<span class="tk-cm">-- Print every entry in the current directory,</span>
+<span class="tk-cm">-- each one from its own task</span>
+<span class="tk-kw">for</span> _, name <span class="tk-kw">in</span> fs.<span class="tk-fn">listDir</span>(<span class="tk-str">"."</span>) <span class="tk-kw">do</span>
+    task.<span class="tk-fn">spawn</span>(<span class="tk-kw">function</span>()
+        term.stdout:<span class="tk-fn">writeLine</span>(term.<span class="tk-fn">style</span>(name, <span class="tk-str">"bold"</span>, <span class="tk-str">"cyan"</span>))
+    <span class="tk-kw">end</span>)
+<span class="tk-kw">end</span></code></pre>
+                    </div>
+                    <div class="page code-body" id="code-terminal">
+                        <button class="transparent circle copy-btn"
+                            data-copy="sn init hello&#10;cd hello&#10;sn pkg add github.com/acme/json5&#10;sn run&#10;sn build"
+                            aria-label="Copy commands"><i>content_copy</i></button>
+<pre><code><span class="tk-cm">$</span> sn init hello
+<span class="tk-cm">$</span> cd hello
+<span class="tk-cm">$</span> sn pkg add github.com/acme/json5
+<span class="tk-cm">$</span> sn run
+<span class="tk-out">Hello World!</span>
+<span class="tk-cm">$</span> sn build
+<span class="tk-cm"># standalone executable written to dist/</span></code></pre>
+                    </div>
+                    <div class="page code-body" id="code-manifest">
+                        <button class="transparent circle copy-btn" data-copy-target="#pre-manifest"
+                            aria-label="Copy code"><i>content_copy</i></button>
+<pre id="pre-manifest"><code><span class="tk-cm">-- .sonata/project.luau</span>
+<span class="tk-kw">return</span> {
+    name = <span class="tk-str">"myProject"</span>,
+    version = <span class="tk-str">"0.1.0"</span>,
+    description = <span class="tk-str">"A new Sonata project"</span>,
+    entrypoint = <span class="tk-str">"main.luau"</span>,
+    authors = {},
+    dependencies = {},
+}</code></pre>
+                    </div>
+                </article>
+            </div>
+        </section>
+
+        <!-- Built-in libraries -->
+        <div class="large-space"></div>
+        <hr class="medium">
+        <div class="medium-space"></div>
+        <section class="center-align section-title" id="libraries">
+            <h2>Batteries included</h2>
+            <p class="large-text">Every library ships with Sonata. Import any of them with
+                <code>require("@sonata/&lt;name&gt;")</code>.</p>
+        </section>
+        <div class="space"></div>
+        <section class="grid small-space">
+            <div class="s12 m6 l4"><a class="row padding wave module" href="https://runsonata.github.io/docs/api/module/fs/" target="_blank" rel="noopener"><i class="primary-text">folder</i><div class="max"><code>fs</code><p>Files, directories, globbing, watching and locking.</p></div></a></div>
+            <div class="s12 m6 l4"><a class="row padding wave module" href="https://runsonata.github.io/docs/api/module/net/" target="_blank" rel="noopener"><i class="primary-text">lan</i><div class="max"><code>net</code><p>TCP, UDP, Unix sockets, TLS, DNS, URLs, HTTP/1.1 and WebSocket.</p></div></a></div>
+            <div class="s12 m6 l4"><a class="row padding wave module" href="https://runsonata.github.io/docs/api/module/process/" target="_blank" rel="noopener"><i class="primary-text">terminal</i><div class="max"><code>process</code><p>The running program, child processes and signals.</p></div></a></div>
+            <div class="s12 m6 l4"><a class="row padding wave module" href="https://runsonata.github.io/docs/api/module/task/" target="_blank" rel="noopener"><i class="primary-text">account_tree</i><div class="max"><code>task</code><p>Tasks and the tools to coordinate them.</p></div></a></div>
+            <div class="s12 m6 l4"><a class="row padding wave module" href="https://runsonata.github.io/docs/api/module/term/" target="_blank" rel="noopener"><i class="primary-text">keyboard</i><div class="max"><code>term</code><p>Standard streams, colors, cursor control and keyboard input.</p></div></a></div>
+            <div class="s12 m6 l4"><a class="row padding wave module" href="https://runsonata.github.io/docs/api/module/json/" target="_blank" rel="noopener"><i class="primary-text">data_object</i><div class="max"><code>json</code><p>Parse, serialize and edit JSON.</p></div></a></div>
+            <div class="s12 m6 l4"><a class="row padding wave module" href="https://runsonata.github.io/docs/api/module/serde/" target="_blank" rel="noopener"><i class="primary-text">swap_horiz</i><div class="max"><code>serde</code><p>YAML, TOML, INI, CSV and TSV, plus a toolkit for custom formats.</p></div></a></div>
+            <div class="s12 m6 l4"><a class="row padding wave module" href="https://runsonata.github.io/docs/api/module/crypto/" target="_blank" rel="noopener"><i class="primary-text">lock</i><div class="max"><code>crypto</code><p>Hashes, HMAC, key derivation, ciphers, signatures and UUIDs.</p></div></a></div>
+            <div class="s12 m6 l4"><a class="row padding wave module" href="https://runsonata.github.io/docs/api/module/compress/" target="_blank" rel="noopener"><i class="primary-text">folder_zip</i><div class="max"><code>compress</code><p>gzip, zlib, deflate and zstd compression, streaming, checksums.</p></div></a></div>
+            <div class="s12 m6 l4"><a class="row padding wave module" href="https://runsonata.github.io/docs/api/module/datetime/" target="_blank" rel="noopener"><i class="primary-text">schedule</i><div class="max"><code>datetime</code><p>Dates, times and time zones, precise to the nanosecond.</p></div></a></div>
+            <div class="s12 m6 l4"><a class="row padding wave module" href="https://runsonata.github.io/docs/api/module/regex/" target="_blank" rel="noopener"><i class="primary-text">manage_search</i><div class="max"><code>regex</code><p>ECMAScript regular expressions.</p></div></a></div>
+            <div class="s12 m6 l4"><a class="row padding wave module" href="https://runsonata.github.io/docs/api/module/path/" target="_blank" rel="noopener"><i class="primary-text">route</i><div class="max"><code>path</code><p>Lexical path manipulation for POSIX and Windows.</p></div></a></div>
+            <div class="s12 m6 l4"><a class="row padding wave module" href="https://runsonata.github.io/docs/api/module/pocket/" target="_blank" rel="noopener"><i class="primary-text">inventory_2</i><div class="max"><code>pocket</code><p>Read-only asset files packed with the program.</p></div></a></div>
+            <div class="s12 m6 l4"><a class="row padding wave module" href="https://runsonata.github.io/docs/api/module/sys/" target="_blank" rel="noopener"><i class="primary-text">memory</i><div class="max"><code>sys</code><p>Facts about the machine, clocks and sleeping.</p></div></a></div>
+            <div class="s12 m6 l4"><a class="row padding wave module" href="https://runsonata.github.io/docs/api/module/sonata/" target="_blank" rel="noopener"><i class="primary-text">music_note</i><div class="max"><code>sonata</code><p>Build info, projects and the package manager.</p></div></a></div>
+        </section>
+
+        <!-- Install -->
+        <div class="large-space"></div>
+        <hr class="medium">
+        <div class="medium-space"></div>
+        <section class="center-align section-title" id="install">
+            <h2>Install Sonata</h2>
+            <p class="large-text">Runs on Linux, macOS and Windows.</p>
+            <nav class="center-align wrap">
+                <span class="chip"><i>computer</i><span>Linux</span></span>
+                <span class="chip"><i>laptop_mac</i><span>macOS</span></span>
+                <span class="chip"><i>desktop_windows</i><span>Windows</span></span>
+                <span class="chip"><i>memory</i><span>x64 &middot; arm64</span></span>
+            </nav>
+        </section>
+        <div class="space"></div>
+        <section>
+            <article class="border round no-padding code-window">
+                <div class="tabs">
+                    <a class="active" data-ui="#install-unix-script"><i>terminal</i><span>Linux / macOS</span></a>
+                    <a data-ui="#install-windows-script"><i>desktop_windows</i><span>Windows</span></a>
+                    <a data-ui="#install-release"><i>download</i><span>Manual</span></a>
+                    <a data-ui="#install-source"><i>build</i><span>From source</span></a>
+                </div>
+                <div class="page active large-padding" id="install-unix-script">
+                    <div class="row step">
+                        <span class="step-num primary">1</span>
+                        <div class="max">
+                            <h6 class="no-margin">Run the install script</h6>
+                            <p>The script downloads the latest release for your system into <code>~/.sonata</code>
+                                and adds <code>~/.sonata/bin</code> to your <code>PATH</code> through your shell's rc
+                                file. It needs <code>curl</code> or <code>wget</code>, and <code>tar</code>.</p>
+                            <div class="code-body">
+                                <button class="transparent circle copy-btn" data-copy-target="#pre-install-sh"
+                                    aria-label="Copy command"><i>content_copy</i></button>
+<pre id="pre-install-sh" class="round"><code>curl -fsSL <span class="install-url" data-file="install.sh">https://sonata.5418.org/install.sh</span> | bash</code></pre>
+                            </div>
+                            <p>No <code>curl</code>? Use <code>wget -qO- <span class="install-url"
+                                        data-file="install.sh">https://sonata.5418.org/install.sh</span> | bash</code>
+                                instead.</p>
+                        </div>
+                    </div>
+                    <div class="row step">
+                        <span class="step-num primary">2</span>
+                        <div class="max">
+                            <h6 class="no-margin">Restart your shell and check that it works</h6>
+                            <div class="code-body">
+                                <button class="transparent circle copy-btn" data-copy="sn --version"
+                                    aria-label="Copy command"><i>content_copy</i></button>
+                                <pre class="round"><code>sn --version</code></pre>
+                            </div>
+                        </div>
+                    </div>
+                    <details>
+                        <summary class="bold">Options</summary>
+                        <p>Pass options after <code>bash -s --</code>, or set the environment variable instead:</p>
+                        <div class="code-body">
+                            <button class="transparent circle copy-btn" data-copy-target="#pre-install-sh-opts"
+                                aria-label="Copy command"><i>content_copy</i></button>
+<pre id="pre-install-sh-opts" class="round"><code>curl -fsSL <span class="install-url" data-file="install.sh">https://sonata.5418.org/install.sh</span> | bash -s -- --version 0.1.92 --dir /opt/sonata</code></pre>
+                        </div>
+                        <table class="stripes">
+                            <thead>
+                                <tr><th>Option</th><th>Variable</th><th>Description</th></tr>
+                            </thead>
+                            <tbody>
+                                <tr><td><code>--version &lt;tag&gt;</code></td><td><code>SONATA_VERSION</code></td><td>Release to install, e.g. <code>0.1.92</code>. Defaults to the newest release, pre-releases included.</td></tr>
+                                <tr><td><code>--dir &lt;path&gt;</code></td><td><code>SONATA_INSTALL</code></td><td>Install location. Defaults to <code>~/.sonata</code>; <code>sn</code> goes in <code>&lt;dir&gt;/bin</code>.</td></tr>
+                                <tr><td><code>--no-modify-path</code></td><td><code>SONATA_NO_MODIFY_PATH=1</code></td><td>Don't add <code>&lt;dir&gt;/bin</code> to your <code>PATH</code>.</td></tr>
+                            </tbody>
+                        </table>
+                        <p>The script also works from Git Bash on Windows. Want to read it first?
+                            <a class="link" href="install.sh" target="_blank">View install.sh</a></p>
+                    </details>
+                </div>
+                <div class="page large-padding" id="install-windows-script">
+                    <div class="row step">
+                        <span class="step-num primary">1</span>
+                        <div class="max">
+                            <h6 class="no-margin">Run the install script in PowerShell</h6>
+                            <p>The script downloads the latest release into <code>%USERPROFILE%\.sonata</code> and adds
+                                its <code>bin</code> folder to your user <code>PATH</code>.</p>
+                            <div class="code-body">
+                                <button class="transparent circle copy-btn" data-copy-target="#pre-install-ps1"
+                                    aria-label="Copy command"><i>content_copy</i></button>
+<pre id="pre-install-ps1" class="round"><code>irm <span class="install-url" data-file="install.ps1">https://sonata.5418.org/install.ps1</span> | iex</code></pre>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row step">
+                        <span class="step-num primary">2</span>
+                        <div class="max">
+                            <h6 class="no-margin">Open a new terminal and check that it works</h6>
+                            <div class="code-body">
+                                <button class="transparent circle copy-btn" data-copy="sn --version"
+                                    aria-label="Copy command"><i>content_copy</i></button>
+                                <pre class="round"><code>sn --version</code></pre>
+                            </div>
+                        </div>
+                    </div>
+                    <details>
+                        <summary class="bold">Options</summary>
+                        <p>Set environment variables before running the script:</p>
+                        <div class="code-body">
+                            <button class="transparent circle copy-btn" data-copy-target="#pre-install-ps1-env"
+                                aria-label="Copy commands"><i>content_copy</i></button>
+<pre id="pre-install-ps1-env" class="round"><code>$env:SONATA_VERSION = <span class="tk-str">"0.1.92"</span>
+$env:SONATA_INSTALL = <span class="tk-str">"C:\sonata"</span>
+irm <span class="install-url" data-file="install.ps1">https://sonata.5418.org/install.ps1</span> | iex</code></pre>
+                        </div>
+                        <p>Or download the script and pass them as parameters:</p>
+                        <div class="code-body">
+                            <button class="transparent circle copy-btn" data-copy-target="#pre-install-ps1-file"
+                                aria-label="Copy commands"><i>content_copy</i></button>
+<pre id="pre-install-ps1-file" class="round"><code>irm <span class="install-url" data-file="install.ps1">https://sonata.5418.org/install.ps1</span> -OutFile install.ps1
+powershell -ExecutionPolicy Bypass -File .\install.ps1 -Version 0.1.92 -Dir C:\sonata</code></pre>
+                        </div>
+                        <table class="stripes">
+                            <thead>
+                                <tr><th>Parameter</th><th>Variable</th><th>Description</th></tr>
+                            </thead>
+                            <tbody>
+                                <tr><td><code>-Version</code></td><td><code>SONATA_VERSION</code></td><td>Release to install, e.g. <code>0.1.92</code>. Defaults to the newest release.</td></tr>
+                                <tr><td><code>-Dir</code></td><td><code>SONATA_INSTALL</code></td><td>Install location. Defaults to <code>~\.sonata</code>.</td></tr>
+                                <tr><td><code>-NoModifyPath</code></td><td><code>SONATA_NO_MODIFY_PATH=1</code></td><td>Don't add <code>&lt;dir&gt;\bin</code> to your user <code>PATH</code>.</td></tr>
+                            </tbody>
+                        </table>
+                        <p>Want to read it first? <a class="link" href="install.ps1" target="_blank">View install.ps1</a></p>
+                    </details>
+                </div>
+                <div class="page large-padding" id="install-release">
+                    <div class="row step">
+                        <span class="step-num primary">1</span>
+                        <div class="max">
+                            <h6 class="no-margin">Download the archive for your platform</h6>
+                            <p>Archives are named <code>sonata-&lt;version&gt;-&lt;system&gt;-&lt;arch&gt;.tar.gz</code>
+                                (<code>.zip</code> on Windows).</p>
+                            <a class="button primary round" href="https://github.com/runsonata/sonata/releases/latest"
+                                target="_blank" rel="noopener"><i>download</i><span>Latest release</span></a>
+                        </div>
+                    </div>
+                    <div class="row step">
+                        <span class="step-num primary">2</span>
+                        <div class="max">
+                            <h6 class="no-margin">Extract it and add <code>bin</code> to your <code>PATH</code></h6>
+                            <p>Extract anywhere you like, but keep the folders together: <code>sn</code> looks for its
+                                runtime in <code>../libexec/sonata/</code> relative to itself.</p>
+                        </div>
+                    </div>
+                    <div class="row step">
+                        <span class="step-num primary">3</span>
+                        <div class="max">
+                            <h6 class="no-margin">Check that it works</h6>
+                            <div class="code-body">
+                                <button class="transparent circle copy-btn" data-copy="sn --version"
+                                    aria-label="Copy command"><i>content_copy</i></button>
+                                <pre class="round"><code>sn --version</code></pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="page large-padding" id="install-source">
+                    <h6 class="no-margin">Linux / macOS</h6>
+                    <p>You need CMake 3.21+, a C++20 compiler, Git, zlib and OpenSSL.</p>
+                    <div class="code-body">
+                        <button class="transparent circle copy-btn" data-copy-target="#pre-unix"
+                            aria-label="Copy commands"><i>content_copy</i></button>
+<pre id="pre-unix" class="round"><code>git clone --recursive https://github.com/runsonata/sonata.git
+cd sonata
+./b.sh release
+./b.sh install    <span class="tk-cm"># installs to $PREFIX, default ~/.local</span></code></pre>
+                    </div>
+                    <p>Make sure <code>~/.local/bin</code> (or <code>$PREFIX/bin</code>) is on your <code>PATH</code>.</p>
+                    <div class="space"></div>
+                    <h6 class="no-margin">Windows</h6>
+                    <p>Build in a Developer PowerShell. You need CMake 3.21+, MSVC, Git, zlib and OpenSSL.</p>
+                    <div class="code-body">
+                        <button class="transparent circle copy-btn" data-copy-target="#pre-windows"
+                            aria-label="Copy commands"><i>content_copy</i></button>
+<pre id="pre-windows" class="round"><code>git clone --recursive https://github.com/runsonata/sonata.git
+cd sonata
+cmake --preset release
+cmake --build --preset release --config Release
+cmake --install build/release --prefix "$env:LOCALAPPDATA\sonata"</code></pre>
+                    </div>
+                    <p>Then add <code>%LOCALAPPDATA%\sonata\bin</code> to your <code>PATH</code>.</p>
+                </div>
+            </article>
+            <nav class="center-align">
+                <a class="link" href="https://runsonata.github.io/docs/guide/installation/" target="_blank"
+                    rel="noopener">Read the full installation guide <i class="small">arrow_forward</i></a>
+            </nav>
+        </section>
+
+        <!-- Discord -->
+        <div class="large-space"></div>
+        <hr class="medium">
+        <div class="medium-space"></div>
+        <section>
+            <article class="round large-padding fill">
+                <div class="grid middle-align">
+                    <div class="s12 l6">
+                        <div class="row">
+                            <img class="no-round large" style="object-fit: contain;"
+                                src="static/brandicons/discord_white.png" alt="Discord logo">
+                            <h2 class="no-margin discord-title">Discord Server</h2>
+                        </div>
+                        <h5>Join the Discord server to:</h5>
+                        <ul class="list no-space">
+                            <li><i>support</i><div class="max">Get support</div></li>
+                            <li><i>bug_report</i><div class="max">Report bugs</div></li>
+                            <li><i>lightbulb</i><div class="max">Suggest features</div></li>
+                            <li><i>forum</i><div class="max">Chat with other users</div></li>
+                            <li><i>campaign</i><div class="max">Get updates on new features</div></li>
+                        </ul>
+                        <a class="button primary round extra" href="https://discord.gg/kGVWCdVHvW" target="_blank" rel="noopener">
+                            <i>group_add</i>
+                            <span>Join the Discord</span>
+                        </a>
+                    </div>
+                    <div class="s12 l6 center-align">
+                        <iframe class="discord-widget" title="Discord server widget"
+                            src="https://discord.com/widget?id=1550899754550960279&theme=dark"
+                            allowtransparency="true"
+                            sandbox="allow-popups allow-popups-to-escape-sandbox allow-same-origin allow-scripts"></iframe>
+                    </div>
+                </div>
+            </article>
+        </section>
+        <div class="large-space"></div>
+    </main>
+    <footer class="fill medium-padding center-align middle-align vertical">
+        <nav class="center-align wrap">
+            <a class="link" href="https://runsonata.github.io/docs/" target="_blank" rel="noopener">Documentation</a>
+            <a class="link" href="https://github.com/runsonata/sonata" target="_blank" rel="noopener">GitHub</a>
+            <a class="link" href="https://discord.gg/kGVWCdVHvW" target="_blank" rel="noopener">Discord</a>
+        </nav>
+        <p>Copyright 2026 <a class="link" href="https://5418.org">Loopy5418</a> - All Rights Reserved</p>
+        <p>Inspired by <a class="link" href="https://lute.luau.org">Lute</a></p>
+        <div>
+            <img class="top-round medium" src="static/yogurt_cat.png" alt="yogurt cat">
+            <span class="tooltip">yogurt cat (mars was here)</span>
+        </div>
+    </footer>
+
+    <div class="snackbar" id="snackbar-copied">
+        <i>check</i>
+        <span>Copied to clipboard</span>
+    </div>
+
+    <script>
+        // Point the install commands at wherever this page is hosted.
+        if (location.protocol === 'https:' || location.protocol === 'http:') {
+            document.querySelectorAll('.install-url').forEach(function (el) {
+                el.textContent = new URL(el.dataset.file, location.href).href;
+            });
+        }
+
+        document.querySelectorAll('.copy-btn').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                const target = btn.dataset.copyTarget && document.querySelector(btn.dataset.copyTarget);
+                const text = target ? target.textContent : btn.dataset.copy;
+                navigator.clipboard.writeText(text.trim()).then(function () {
+                    const icon = btn.querySelector('i');
+                    icon.textContent = 'check';
+                    setTimeout(function () { icon.textContent = 'content_copy'; }, 1500);
+                    if (window.ui) ui('#snackbar-copied', 2000);
+                });
+            });
+        });
+    </script>
+</body>
+
+</html>
