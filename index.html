@@ -5,8 +5,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Sonata is an all-in-one toolkit for Luau: a package manager, module loader and compiler in a single command.">
-    <link rel="stylesheet" type="text/css"
-        href="https://fonts.googleapis.com/css?family=Ubuntu:regular,bold|Ubuntu+Mono&subset=Latin">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Ubuntu:ital,wght@0,300;0,400;0,500;0,700;1,400;1,700&family=Ubuntu+Mono:ital,wght@0,400;0,700;1,400&display=swap">
     <title>Sonata</title>
     <link href="https://cdn.jsdelivr.net/npm/beercss@4.0.22/dist/cdn/beer.min.css" rel="stylesheet">
     <script type="module" src="https://cdn.jsdelivr.net/npm/beercss@4.0.22/dist/cdn/beer.min.js"></script>
@@ -43,13 +45,27 @@
             margin: 1.5rem auto;
         }
 
-        body {
-            font-family: Ubuntu, "times new roman", times, roman, serif;
+        /* BeerCSS reads its text font from --font (body, badges, etc.),
+           so override the variable instead of only the body rule. */
+        :root {
+            --font: Ubuntu, Inter, Roboto, "Helvetica Neue", Arial, sans-serif;
+            --font-mono: "Ubuntu Mono", ui-monospace, monospace;
+        }
+
+        html,
+        body,
+        button,
+        input,
+        select,
+        textarea {
+            font-family: var(--font);
         }
 
         pre,
-        code {
-            font-family: "Ubuntu Mono", ui-monospace, monospace;
+        code,
+        kbd,
+        samp {
+            font-family: var(--font-mono);
             font-size: 1rem;
         }
 
@@ -87,8 +103,10 @@
             position: relative;
         }
 
+        /* BeerCSS's reset adds a top margin to a <pre> that follows a
+           sibling (here, the copy button) with a high-specificity selector. */
         .code-body pre {
-            margin: 0;
+            margin: 0 !important;
             border: none;
             background: transparent;
             padding: 1.25rem 3.5rem 1.25rem 1.25rem;
@@ -101,7 +119,10 @@
             white-space: pre;
         }
 
+        /* BeerCSS makes every element position: relative, so the <pre> after
+           the button is positioned too and paints over it. Lift the button. */
         .copy-btn {
+            z-index: 1;
             position: absolute;
             top: 0.5rem;
             right: 0.5rem;
@@ -169,6 +190,33 @@
             height: 500px;
             border: 0;
             border-radius: 1rem;
+        }
+
+        /* Text column fills the article height; the join button sits at the bottom. */
+        .discord-info-col {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .discord-info-col > .list {
+            flex: none; /* BeerCSS sets flex: 1, which would stretch the list */
+            margin-bottom: 1rem;
+        }
+
+        .discord-info-col > .button {
+            align-self: flex-start;
+            margin-top: auto !important;
+        }
+
+        /* Centered when stacked; pushed to the right edge side by side. */
+        .discord-widget-col {
+            text-align: center;
+        }
+
+        @media only screen and (min-width: 993px) {
+            .discord-widget-col {
+                text-align: end;
+            }
         }
     </style>
 </head>
@@ -570,8 +618,8 @@ cmake --install build/release --prefix "$env:LOCALAPPDATA\sonata"</code></pre>
         <div class="medium-space"></div>
         <section>
             <article class="round large-padding fill">
-                <div class="grid middle-align">
-                    <div class="s12 l6">
+                <div class="grid">
+                    <div class="s12 l6 discord-info-col">
                         <div class="row">
                             <img class="no-round large" style="object-fit: contain;"
                                 src="static/brandicons/discord_white.png" alt="Discord logo">
@@ -590,7 +638,7 @@ cmake --install build/release --prefix "$env:LOCALAPPDATA\sonata"</code></pre>
                             <span>Join the Discord</span>
                         </a>
                     </div>
-                    <div class="s12 l6 center-align">
+                    <div class="s12 l6 discord-widget-col">
                         <iframe class="discord-widget" title="Discord server widget"
                             src="https://discord.com/widget?id=1550899754550960279&theme=dark"
                             allowtransparency="true"
