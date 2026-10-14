@@ -21,7 +21,7 @@ $ProgressPreference = 'SilentlyContinue'   # Invoke-WebRequest is very slow with
 $Repo = 'runsonata/sonata'
 $Api = "https://api.github.com/repos/$Repo"
 
-# throw, not exit: under `irm | iex` exit would close the user's terminal.
+# throw, not exit: under "irm | iex" exit would close the user's terminal.
 function Fail($message) {
     throw "sonata install failed: $message"
 }
@@ -30,9 +30,14 @@ function Fail($message) {
 
 # PROCESSOR_ARCHITEW6432 is set when this is a 32-bit PowerShell on 64-bit Windows.
 $arch = if ($env:PROCESSOR_ARCHITEW6432) { $env:PROCESSOR_ARCHITEW6432 } else { $env:PROCESSOR_ARCHITECTURE }
-$arches = switch ($arch) {
-    'AMD64' { @('AMD64') }
-    'ARM64' { @('ARM64', 'AMD64') }   # Windows on ARM runs x64 programs too
+# Asset names look like sonata-<version>-<platform>.zip. Releases from 1.0.0 use
+# windows-x64 / windows-arm64; older ones used Windows-AMD64 / Windows-ARM64.
+# Each entry is one architecture's suffixes (new first, then old, so -Version
+# still works for old tags), in order of preference.
+$candidates = switch ($arch) {
+    'AMD64' { @(, @('-windows-x64.zip', '-Windows-AMD64.zip')) }
+    'ARM64' { @(@('-windows-arm64.zip', '-Windows-ARM64.zip'),
+                @('-windows-x64.zip', '-Windows-AMD64.zip')) }   # Windows on ARM runs x64 programs too
     default { Fail "unsupported architecture: $arch" }
 }
 
@@ -54,17 +59,26 @@ try {
     if ($Version) { Fail "release $tag not found" } else { Fail "couldn't reach the GitHub API: $_" }
 }
 
-# Asset names look like sonata-<cmake version>-Windows-<arch>.zip; the CMake
-# version doesn't always match the tag, so match on the suffix only.
+# The version in an asset name doesn't always match the tag (v0.1.92 shipped
+# sonata-0.1.8-*), so match on the platform suffix only.
 $asset = $null
-foreach ($a in $arches) {
+foreach ($suffixes in $candidates) {
     foreach ($release in $releases) {
-        $asset = $release.assets | Where-Object { $_.name -like "*-Windows-$a.zip" } | Select-Object -First 1
+        $asset = $release.assets | Where-Object {
+            $name = $_.name
+            $suffixes | Where-Object { $name.EndsWith($_, [StringComparison]::Ordinal) }
+        } | Select-Object -First 1
         if ($asset) { $tag = $release.tag_name; break }
     }
     if ($asset) { break }
 }
-if (-not $asset) { Fail "no release asset for Windows $arch" }
+if (-not $asset) {
+    $looked = ($candidates | ForEach-Object { $_ }) -join ', '
+    Fail "no release asset for Windows $arch (looked for: $looked)"
+}
+if ($arch -eq 'ARM64' -and $asset.name -match '(?i)x64|AMD64') {
+    Write-Host '> No Windows ARM64 build; installing the x64 build instead'
+}
 
 # download and install //////////////////////////////////////////
 
@@ -79,7 +93,7 @@ try {
     $extracted = Join-Path $tmp 'x'
     Expand-Archive -Path $zip -DestinationPath $extracted -Force
 
-    # The archive holds a single sonata-<version>-Windows-<arch>\ directory.
+    # The archive holds a single sonata-<version>-<platform>\ directory.
     $root = Get-ChildItem -Path $extracted -Directory | Select-Object -First 1
     if (-not $root -or -not (Test-Path (Join-Path $root.FullName 'bin\sn.exe'))) {
         Fail 'unexpected archive layout (no bin\sn.exe)'
