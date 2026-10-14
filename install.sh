@@ -71,14 +71,22 @@ if [[ "$os" == "Darwin" && "$arch" == "x86_64" ]] \
   arch="arm64"
 fi
 
+# Asset names look like sonata-<version>-<platform>.<ext>. Releases from 1.0.0
+# use lowercase platforms (linux-x64, macos-arm64, windows-x64); older ones used
+# uname-style names (Linux-x86_64, Darwin-arm64, Windows-AMD64). Each list holds
+# the new suffix first, then the old one, so --version still works for old tags.
+# "fallback" is tried only when nothing in "suffixes" matches.
+fallback=""
 case "$os:$arch" in
-  Linux:x86_64|Linux:amd64)            arch="x86_64" ;;
-  Linux:aarch64|Linux:arm64)           arch="aarch64" ;;
-  Darwin:arm64|Darwin:aarch64)         arch="arm64" ;;
-  Darwin:x86_64)                       arch="x86_64" ;;
-  Windows:x86_64|Windows:amd64)        arch="AMD64" ;;
-  Windows:aarch64|Windows:arm64)       arch="ARM64" ;;
-  *)                                   die "unsupported architecture: $arch on $os" ;;
+  Linux:x86_64|Linux:amd64)       arch="x64"   suffixes="-linux-x64.$ext -Linux-x86_64.$ext" ;;
+  Linux:aarch64|Linux:arm64)      arch="arm64" suffixes="-linux-arm64.$ext -Linux-aarch64.$ext" ;;
+  Darwin:arm64|Darwin:aarch64)    arch="arm64" suffixes="-macos-arm64.$ext -Darwin-arm64.$ext" ;;
+  Darwin:x86_64)                  arch="x64"   suffixes="-macos-x64.$ext -Darwin-x86_64.$ext" ;;
+  Windows:x86_64|Windows:amd64)   arch="x64"   suffixes="-windows-x64.$ext -Windows-AMD64.$ext" ;;
+  Windows:aarch64|Windows:arm64)  arch="arm64" suffixes="-windows-arm64.$ext -Windows-ARM64.$ext"
+                                  # Windows on ARM runs x64 programs too.
+                                  fallback="-windows-x64.$ext -Windows-AMD64.$ext" ;;
+  *)                              die "unsupported architecture: $arch on $os" ;;
 esac
 
 # download helpers ///////////////////////////////////////
@@ -101,14 +109,16 @@ fi
 
 # find the release asset /////////////////////////////////////
 
-# Asset names look like sonata-<cmake version>-<OS>-<arch>.<ext>; the CMake
-# version doesn't always match the tag, so match on the suffix only.
-suffix="-$os-$arch.$ext"
-
-find_asset() { # reads release JSON on stdin, prints the first matching URL
+# The version in an asset name doesn't always match the tag (v0.1.92 shipped
+# sonata-0.1.8-*), so match on the platform suffix only.
+find_asset() { # find_asset <suffix>...; reads release JSON on stdin, prints the first matching URL
+  local pattern="" s
+  for s in "$@"; do
+    pattern="${pattern:+$pattern|}${s//./\\.}\$"
+  done
   grep -o '"browser_download_url": *"[^"]*"' \
     | sed 's/.*"\(https[^"]*\)"$/\1/' \
-    | grep -F -- "$suffix" \
+    | grep -E -- "$pattern" \
     | head -n 1 || true
 }
 
@@ -122,8 +132,13 @@ else
   json="$(fetch "$API/releases?per_page=20")" || die "couldn't reach the GitHub API"
 fi
 
-url="$(find_asset <<<"$json")"
-[[ -n "$url" ]] || die "no release asset for $os $arch (looked for *$suffix)"
+# shellcheck disable=SC2086 # the suffix lists are meant to split into words
+url="$(find_asset $suffixes <<<"$json")"
+if [[ -z "$url" && -n "$fallback" ]]; then
+  url="$(find_asset $fallback <<<"$json")"
+  [[ -n "$url" ]] && info "No $os $arch build; installing the x64 build instead"
+fi
+[[ -n "$url" ]] || die "no release asset for $os $arch (looked for: $suffixes${fallback:+ $fallback})"
 tag="$(sed -n 's#.*/releases/download/\([^/]*\)/.*#\1#p' <<<"$url")"
 
 # download and install //////////////////////////////////////
@@ -141,7 +156,7 @@ else
   tar -xzf "$tmp/archive.$ext" -C "$tmp/x"
 fi
 
-# The archive holds a single sonata-<version>-<OS>-<arch>/ directory.
+# The archive holds a single sonata-<version>-<platform>/ directory.
 root="$(find "$tmp/x" -mindepth 1 -maxdepth 1 -type d | head -n 1)"
 [[ -n "$root" && -d "$root/bin" ]] || die "unexpected archive layout"
 
