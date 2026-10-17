@@ -449,7 +449,9 @@
                             <h6 class="no-margin">Run the install script</h6>
                             <p>The script downloads the latest release for your system into <code>~/.sonata</code>
                                 and adds <code>~/.sonata/bin</code> to your <code>PATH</code> through your shell's rc
-                                file. It needs <code>curl</code> or <code>wget</code>, and <code>tar</code>.</p>
+                                file. It needs <code>curl</code> or <code>wget</code>, and <code>tar</code>. If
+                                Sonata needs libraries your system doesn't have (such as libsodium), it asks to install
+                                them with your package manager (apt, dnf, zypper, pacman or Homebrew).</p>
                             <div class="code-body">
                                 <button class="transparent circle copy-btn" data-copy-target="#pre-install-sh"
                                     aria-label="Copy command"><i>content_copy</i></button>
@@ -487,6 +489,8 @@
                                 <tr><td><code>--version &lt;tag&gt;</code></td><td><code>SONATA_VERSION</code></td><td>Release to install, e.g. <code>0.1.92</code>. Defaults to the newest release, pre-releases included.</td></tr>
                                 <tr><td><code>--dir &lt;path&gt;</code></td><td><code>SONATA_INSTALL</code></td><td>Install location. Defaults to <code>~/.sonata</code>; <code>sn</code> goes in <code>&lt;dir&gt;/bin</code>.</td></tr>
                                 <tr><td><code>--no-modify-path</code></td><td><code>SONATA_NO_MODIFY_PATH=1</code></td><td>Don't add <code>&lt;dir&gt;/bin</code> to your <code>PATH</code>.</td></tr>
+                                <tr><td><code>--yes</code>, <code>-y</code></td><td><code>SONATA_DEPS=yes</code></td><td>Install missing libraries without asking.</td></tr>
+                                <tr><td><code>--no-deps</code></td><td><code>SONATA_DEPS=no</code></td><td>Never install libraries; only print the command that would.</td></tr>
                             </tbody>
                         </table>
                         <p>The script also works from Git Bash on Windows. Want to read it first?
@@ -499,7 +503,9 @@
                         <div class="max">
                             <h6 class="no-margin">Run the install script in PowerShell</h6>
                             <p>The script downloads the latest release into <code>%USERPROFILE%\.sonata</code> and adds
-                                its <code>bin</code> folder to your user <code>PATH</code>.</p>
+                                its <code>bin</code> folder to your user <code>PATH</code>. If the Visual C++ runtime
+                                isn't installed, it asks to install it with <code>winget</code> or Microsoft's
+                                installer.</p>
                             <div class="code-body">
                                 <button class="transparent circle copy-btn" data-copy-target="#pre-install-ps1"
                                     aria-label="Copy command"><i>content_copy</i></button>
@@ -543,6 +549,8 @@ powershell -ExecutionPolicy Bypass -File .\install.ps1 -Version 0.1.92 -Dir C:\s
                                 <tr><td><code>-Version</code></td><td><code>SONATA_VERSION</code></td><td>Release to install, e.g. <code>0.1.92</code>. Defaults to the newest release.</td></tr>
                                 <tr><td><code>-Dir</code></td><td><code>SONATA_INSTALL</code></td><td>Install location. Defaults to <code>~\.sonata</code>.</td></tr>
                                 <tr><td><code>-NoModifyPath</code></td><td><code>SONATA_NO_MODIFY_PATH=1</code></td><td>Don't add <code>&lt;dir&gt;\bin</code> to your user <code>PATH</code>.</td></tr>
+                                <tr><td><code>-Yes</code></td><td><code>SONATA_DEPS=yes</code></td><td>Install the Visual C++ runtime without asking, if it is missing.</td></tr>
+                                <tr><td><code>-NoDeps</code></td><td><code>SONATA_DEPS=no</code></td><td>Never install it; only say how.</td></tr>
                             </tbody>
                         </table>
                         <p>Want to read it first? <a class="link" href="install.ps1" target="_blank">View install.ps1</a></p>

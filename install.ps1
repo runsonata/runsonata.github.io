@@ -7,11 +7,18 @@
 #   SONATA_VERSION / -Version       release to install, e.g. 0.1.92 (default: newest)
 #   SONATA_INSTALL / -Dir           install location (default: ~\.sonata)
 #   SONATA_NO_MODIFY_PATH=1 / -NoModifyPath   don't add <dir>\bin to the user PATH
+#   SONATA_DEPS=yes / -Yes          install the Visual C++ runtime without asking, if it is missing
+#   SONATA_DEPS=no / -NoDeps        never install it, only say that it is missing
+#
+# sn.exe needs the Visual C++ runtime. When it isn't installed, the script
+# offers to install it (with winget, or Microsoft's installer).
 
 param(
     [string]$Version = $env:SONATA_VERSION,
     [string]$Dir = $(if ($env:SONATA_INSTALL) { $env:SONATA_INSTALL } else { Join-Path $HOME '.sonata' }),
-    [switch]$NoModifyPath = [bool]$env:SONATA_NO_MODIFY_PATH
+    [switch]$NoModifyPath = [bool]$env:SONATA_NO_MODIFY_PATH,
+    [switch]$Yes,
+    [switch]$NoDeps
 )
 
 $ErrorActionPreference = 'Stop'
@@ -25,6 +32,9 @@ $Api = "https://api.github.com/repos/$Repo"
 function Fail($message) {
     throw "sonata install failed: $message"
 }
+
+$deps = if ($Yes) { 'yes' } elseif ($NoDeps) { 'no' } elseif ($env:SONATA_DEPS) { $env:SONATA_DEPS.ToLower() } else { 'ask' }
+if ($deps -notin 'ask', 'yes', 'no') { Fail "SONATA_DEPS must be ask, yes or no (got '$deps')" }
 
 # platform //////////////////////////////////////
 
@@ -112,8 +122,86 @@ try {
 
 $bin = Join-Path $Dir 'bin'
 $sn = Join-Path $bin 'sn.exe'
-$installed = & $sn --version 2>$null | Select-Object -First 1
-if ($LASTEXITCODE -ne 0) { Fail 'installed sn.exe does not run' }
+
+# libraries ////////////////////////////////////
+
+# sn.exe and snrt.exe are built with MSVC against the shared C runtime, so
+# they need the Visual C++ runtime. Windows shows a dialog, not an error, when
+# a program misses a DLL, so look for the DLLs before running sn.
+$vcArch = if ($asset.name -match '(?i)arm64') { 'arm64' } else { 'x64' }
+$vcDlls = 'vcruntime140.dll', 'vcruntime140_1.dll', 'msvcp140.dll'
+# A 32-bit PowerShell sees SysWOW64 as System32; Sysnative is the real one.
+$system32 = if ([Environment]::Is64BitOperatingSystem -and -not [Environment]::Is64BitProcess) {
+    Join-Path $env:SystemRoot 'Sysnative'
+} else {
+    Join-Path $env:SystemRoot 'System32'
+}
+function Get-MissingDlls {
+    @($vcDlls | Where-Object { -not (Test-Path (Join-Path $system32 $_)) })
+}
+
+# Asks a yes/no question; $null when there is no one to ask.
+function Confirm-Install($question) {
+    if ($deps -eq 'yes') { return $true }
+    if ($deps -eq 'no') { return $false }
+    $nonInteractive = [Environment]::GetCommandLineArgs() | Where-Object { $_ -like '-NonI*' }
+    if (-not [Environment]::UserInteractive -or $nonInteractive) { return $null }
+    try {
+        $reply = Read-Host "$question [Y/n]"
+    } catch {
+        return $null
+    }
+    return (-not $reply) -or ($reply -match '^[Yy]')
+}
+
+$wingetId = "Microsoft.VCRedist.2015+.$vcArch"
+$redistUrl = "https://aka.ms/vc14/vc_redist.$vcArch.exe"
+$depsNote = $null
+$missing = Get-MissingDlls
+
+if ($missing.Count -gt 0) {
+    $winget = Get-Command winget -ErrorAction SilentlyContinue
+    $how = if ($winget) { "winget install -e --id $wingetId" } else { "download and run $redistUrl" }
+
+    Write-Host ''
+    Write-Host "> Sonata needs the Visual C++ runtime ($vcArch), which isn't installed (missing: $($missing -join ', '))."
+    Write-Host "> It can be installed with: $how"
+    $answer = Confirm-Install 'Install it now?'
+
+    if ($answer) {
+        try {
+            if ($winget) {
+                & winget install -e --id $wingetId --accept-package-agreements --accept-source-agreements
+            } else {
+                $redist = Join-Path ([IO.Path]::GetTempPath()) "vc_redist.$vcArch.exe"
+                Write-Host "> Downloading $redistUrl"
+                Invoke-WebRequest -Uri $redistUrl -OutFile $redist -UseBasicParsing
+                # Asks for administrator rights (UAC). 3010 means a restart is
+                # wanted, which sn doesn't need; 1638 that a newer one is installed.
+                $process = Start-Process -FilePath $redist -ArgumentList '/install', '/passive', '/norestart' -Verb RunAs -Wait -PassThru
+                if ($process.ExitCode -notin 0, 1638, 3010) {
+                    Write-Warning "the Visual C++ installer exited with code $($process.ExitCode)"
+                }
+                Remove-Item -Path $redist -Force -ErrorAction SilentlyContinue
+            }
+        } catch {
+            Write-Warning "installing the Visual C++ runtime failed: $_"
+        }
+        $missing = Get-MissingDlls
+    } elseif ($null -eq $answer) {
+        Write-Host '> No one to ask; run the script with -Yes, or set SONATA_DEPS=yes, to install it.'
+    }
+
+    if ($missing.Count -gt 0) {
+        $depsNote = "sn won't start until the Visual C++ runtime is installed: $how"
+    }
+}
+
+$installed = $null
+if (-not $depsNote) {
+    $installed = & $sn --version 2>$null | Select-Object -First 1
+    if ($LASTEXITCODE -ne 0) { Fail 'installed sn.exe does not run' }
+}
 
 # PATH ////////////////////////////////////
 
@@ -133,6 +221,12 @@ if (-not $onPath) {
 }
 
 Write-Host ''
+if ($depsNote) {
+    Write-Host "Sonata $tag installed" -ForegroundColor Green
+    Write-Host $depsNote
+    if ($pathNote) { Write-Host $pathNote }
+    return
+}
 Write-Host "Sonata $tag installed: $installed" -ForegroundColor Green
 if ($pathNote) { Write-Host $pathNote }
 Write-Host 'Run sn --help to get started.'

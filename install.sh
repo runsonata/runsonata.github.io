@@ -12,6 +12,14 @@
 #   --dir <path>       where to install                         [SONATA_INSTALL]
 #                      default: ~/.sonata (sn is put in <dir>/bin)
 #   --no-modify-path   don't add <dir>/bin to PATH              [SONATA_NO_MODIFY_PATH=1]
+#   --yes, -y          install missing libraries without asking [SONATA_DEPS=yes]
+#   --no-deps          never install libraries, only say which  [SONATA_DEPS=no]
+#
+# sn loads a few libraries from the system (libsodium, ImageMagick for
+# @sonata/image, the Visual C++ runtime on Windows). The script looks for the
+# ones the downloaded build needs and this machine lacks, and offers to install
+# them with the system's package manager (apt, dnf, yum, zypper, pacman,
+# Homebrew or winget).
 set -euo pipefail
 
 REPO="runsonata/sonata"
@@ -21,6 +29,7 @@ version="${SONATA_VERSION:-}"
 prefix="${SONATA_INSTALL:-$HOME/.sonata}"
 modify_path=1
 [[ -n "${SONATA_NO_MODIFY_PATH:-}" ]] && modify_path=0
+deps="${SONATA_DEPS:-ask}" # ask | yes | no
 
 if [[ -t 1 ]]; then
   bold=$'\033[1m' red=$'\033[31m' green=$'\033[32m' dim=$'\033[2m' reset=$'\033[0m'
@@ -29,17 +38,20 @@ else
 fi
 
 info() { echo "${dim}>${reset} $*"; }
+warn() { echo "${red}warning:${reset} $*" >&2; }
 die()  { echo "${red}error:${reset} $*" >&2; exit 1; }
 
 usage() {
   cat <<EOF
 Install Sonata (sn) from the GitHub releases.
 
-usage: install.sh [--version <tag>] [--dir <path>] [--no-modify-path]
+usage: install.sh [--version <tag>] [--dir <path>] [--no-modify-path] [--yes | --no-deps]
 
   --version <tag>    release to install, e.g. 0.1.92 (default: newest)  [SONATA_VERSION]
   --dir <path>       install location (default: ~/.sonata)             [SONATA_INSTALL]
   --no-modify-path   don't add <dir>/bin to PATH                       [SONATA_NO_MODIFY_PATH=1]
+  --yes, -y          install missing libraries without asking          [SONATA_DEPS=yes]
+  --no-deps          never install libraries, only say which           [SONATA_DEPS=no]
 EOF
 }
 
@@ -50,10 +62,16 @@ while [[ $# -gt 0 ]]; do
     --dir)            prefix="${2:?--dir needs a value}"; shift 2 ;;
     --dir=*)          prefix="${1#*=}"; shift ;;
     --no-modify-path) modify_path=0; shift ;;
+    -y|--yes)         deps="yes"; shift ;;
+    --no-deps)        deps="no"; shift ;;
     -h|--help)        usage; exit 0 ;;
     *)                die "unknown option: $1 (see --help)" ;;
   esac
 done
+case "$deps" in
+  ask|yes|no) ;;
+  *) die "SONATA_DEPS must be ask, yes or no (got '$deps')" ;;
+esac
 
 # platform ////////////////////////////////////
 
@@ -176,7 +194,244 @@ if [[ "$os" == "Darwin" ]] && command -v xattr >/dev/null 2>&1; then
   xattr -dr com.apple.quarantine "$prefix/bin" "$prefix/libexec" 2>/dev/null || true
 fi
 
-"$prefix/bin/$exe" --version >/dev/null 2>&1 || die "installed $exe doesn't run"
+# libraries ///////////////////////////////////////
+
+# The libraries the binaries need that aren't on this machine, one per line:
+# sonames on Linux, Homebrew paths on macOS, DLL names on Windows.
+missing_libs() { # missing_libs <binary>...
+  local f lib sys32
+  case "$os" in
+    Linux)
+      command -v ldd >/dev/null 2>&1 || return 0
+      for f in "$@"; do
+        if [[ -f "$f" ]]; then ldd "$f" 2>/dev/null || true; fi
+      done | awk '/=> not found/ { print $1 }' | sort -u
+      ;;
+    Darwin)
+      # Mach-O load commands hold absolute paths, and only Homebrew's can be
+      # missing (/usr/lib and /System are part of macOS). otool needs the Xcode
+      # command line tools, so read the paths straight out of the binaries.
+      for f in "$@"; do
+        if [[ -f "$f" ]]; then
+          grep -aoE '/(opt/homebrew|usr/local)/[A-Za-z0-9_.+@/-]+\.dylib' "$f" || true
+        fi
+      done | sort -u | while IFS= read -r lib; do
+        if [[ ! -e "$lib" ]]; then echo "$lib"; fi
+      done
+      ;;
+    Windows)
+      # MSVC builds need the Visual C++ runtime; everything else ships with Windows.
+      command -v cygpath >/dev/null 2>&1 || return 0
+      sys32="$(cygpath -u "${SYSTEMROOT:-C:\\Windows}")/System32"
+      for lib in vcruntime140.dll vcruntime140_1.dll msvcp140.dll; do
+        if [[ ! -f "$sys32/$lib" ]]; then echo "$lib"; fi
+      done
+      ;;
+  esac
+}
+
+# The Linux package that provides a soname, for one package manager.
+linux_package() { # linux_package <manager> <soname>
+  local soname="$2" name ver base candidate
+  case "$1" in
+    dnf|yum|zypper)
+      # RPM packages declare the sonames they provide, so the package manager
+      # can find the right one itself. Every Sonata build is 64-bit.
+      echo "$soname()(64bit)"
+      ;;
+    pacman)
+      case "$soname" in
+        libsodium.*)            echo libsodium ;;
+        libMagick*)             echo imagemagick ;;
+        libzstd.*)              echo zstd ;;
+        libssl.*|libcrypto.*)   echo openssl ;;
+        libz.*)                 echo zlib ;;
+        libstdc++.*|libgcc_s.*) echo gcc-libs ;;
+        *)                      return 1 ;;
+      esac
+      ;;
+    apt-get)
+      case "$soname" in
+        libz.so.*)      echo zlib1g; return ;;
+        libgcc_s.so.*)  echo libgcc-s1; return ;;
+        libcrypto.so.*) soname="libssl.so.${soname#libcrypto.so.}" ;;
+      esac
+      # Debian names runtime packages after the soname: libsodium.so.23 is in
+      # libsodium23, and libMagickWand-6.Q16.so.7 in libmagickwand-6.q16-7 (a
+      # hyphen when the name ends in a digit). Since the 64-bit time_t
+      # transition some have a "t64" suffix, so ask apt which one exists.
+      name="$(tr '[:upper:]' '[:lower:]' <<<"${soname%%.so.*}")"
+      ver="${soname#*.so.}"
+      ver="${ver%%.*}"
+      [[ "$name" == *[0-9] ]] && name="$name-"
+      base="$name$ver"
+      for candidate in "$base" "${base}t64"; do
+        if apt-cache show --no-all-versions "$candidate" 2>/dev/null | grep -q '^Package:'; then
+          echo "$candidate"
+          return
+        fi
+      done
+      echo "$base" # the package lists may be empty; apt-get update comes first anyway
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+# Runs a command as root: directly, or through sudo or doas.
+as_root() {
+  if [[ "$(id -u)" == 0 ]]; then
+    "$@"
+  elif command -v sudo >/dev/null 2>&1; then
+    sudo "$@"
+  elif command -v doas >/dev/null 2>&1; then
+    doas "$@"
+  else
+    echo "this needs root, and neither sudo nor doas is installed" >&2
+    return 1
+  fi
+}
+
+# Asks a yes/no question on the terminal. The script itself usually arrives
+# through a pipe, so stdin is no good for answers. Returns 2 without a terminal.
+confirm() { # confirm <question>
+  local reply
+  case "$deps" in
+    yes) return 0 ;;
+    no)  return 1 ;;
+  esac
+  ( exec </dev/tty ) 2>/dev/null || return 2
+  printf '%s [Y/n] ' "$1" >/dev/tty
+  read -r reply </dev/tty || reply="n"
+  [[ -z "$reply" || "$reply" == [Yy]* ]]
+}
+
+deps_note="" # set when libraries are still missing at the end
+
+setup_libraries() { # setup_libraries <binary>...
+  local missing lib pkg manager="" packages="" unknown="" shown="" root="" vcarch="x64"
+  missing="$(missing_libs "$@")"
+  [[ -n "$missing" ]] || return 0
+
+  [[ "$(id -u)" == 0 ]] || root="sudo "
+  case "$os" in
+    Linux)
+      for manager in apt-get dnf yum zypper pacman ""; do
+        [[ -n "$manager" ]] && command -v "$manager" >/dev/null 2>&1 && break
+      done
+      while IFS= read -r lib; do
+        if pkg="$(linux_package "$manager" "$lib")"; then
+          packages="$packages $pkg"
+        else
+          unknown="$unknown $lib"
+        fi
+      done <<<"$missing"
+      ;;
+    Darwin)
+      manager="brew"
+      while IFS= read -r lib; do
+        # /opt/homebrew/opt/<formula>/lib/... or /opt/homebrew/Cellar/<formula>/<version>/lib/...
+        pkg="$(sed -nE 's#^/(opt/homebrew|usr/local)/(opt|Cellar)/([^/]+)/.*#\3#p' <<<"$lib")"
+        if [[ -n "$pkg" ]]; then
+          packages="$packages $pkg"
+        else
+          unknown="$unknown $lib"
+        fi
+      done <<<"$missing"
+      ;;
+    Windows)
+      [[ "${url##*/}" == *[Aa][Rr][Mm]64* ]] && vcarch="arm64"
+      manager="vcredist"
+      command -v winget >/dev/null 2>&1 && manager="winget"
+      packages=" Microsoft.VCRedist.2015+.$vcarch"
+      ;;
+  esac
+  packages="$(tr ' ' '\n' <<<"$packages" | sed '/^$/d' | sort -u | tr '\n' ' ')"
+  packages="${packages% }"
+
+  case "$manager" in
+    apt-get)  shown="${root}apt-get update && ${root}apt-get install -y $packages" ;;
+    dnf|yum)  shown="$root$manager install -y $packages" ;;
+    zypper)   shown="${root}zypper install $packages" ;;
+    pacman)   shown="${root}pacman -S --needed $packages" ;;
+    brew)     shown="brew install $packages" ;;
+    winget)   shown="winget install -e --id $packages" ;;
+    vcredist) shown="download and run https://aka.ms/vc14/vc_redist.$vcarch.exe" ;;
+  esac
+  # Quote the RPM soname capabilities, which have parentheses.
+  shown="$(sed -E "s/([^ ]+\\(\\)\\(64bit\\))/'\\1'/g" <<<"$shown")"
+
+  echo
+  info "Sonata needs libraries this system doesn't have:"
+  while IFS= read -r lib; do echo "    $lib"; done <<<"$missing"
+
+  if [[ -z "$packages" ]]; then
+    deps_note="Install the packages that provide:${unknown}"
+    return 0
+  fi
+  if [[ "$manager" == "brew" ]] && ! command -v brew >/dev/null 2>&1; then
+    deps_note="Install Homebrew (https://brew.sh), then run: ${bold}$shown${reset}"
+    return 0
+  fi
+  [[ -n "$unknown" ]] && warn "no package found for:$unknown"
+  info "They can be installed with: ${bold}$shown${reset}"
+
+  local answer=0
+  confirm "Install them now?" || answer=$?
+  if (( answer != 0 )); then
+    (( answer == 2 )) && info "No terminal to ask on; rerun with --yes to install them."
+    deps_note="Install the libraries Sonata needs with: ${bold}$shown${reset}"
+    return 0
+  fi
+
+  # The package managers mustn't read from stdin: under "curl | bash" that is
+  # the rest of this script.
+  local status=0
+  case "$manager" in
+    apt-get)
+      # shellcheck disable=SC2086 # the package list is meant to split into words
+      { as_root apt-get update && as_root apt-get install -y $packages; } </dev/null || status=$? ;;
+    dnf|yum)
+      # shellcheck disable=SC2086
+      as_root "$manager" install -y $packages </dev/null || status=$? ;;
+    zypper)
+      # shellcheck disable=SC2086
+      as_root zypper --non-interactive install $packages </dev/null || status=$? ;;
+    pacman)
+      # shellcheck disable=SC2086
+      as_root pacman -S --needed --noconfirm $packages </dev/null || status=$? ;;
+    brew)
+      # shellcheck disable=SC2086
+      brew install $packages </dev/null || status=$? ;;
+    winget)
+      winget install -e --id "$packages" --accept-package-agreements --accept-source-agreements </dev/null || status=$? ;;
+    vcredist)
+      # Asks for administrator rights itself (UAC).
+      { download "https://aka.ms/vc14/vc_redist.$vcarch.exe" "$tmp/vc_redist.exe" \
+          && "$tmp/vc_redist.exe" /install /passive /norestart; } </dev/null || status=$? ;;
+  esac
+  # 3010: the Visual C++ installer wants a restart, which sn doesn't need.
+  if (( status != 0 && status != 3010 )); then
+    warn "installing the libraries failed"
+  fi
+
+  missing="$(missing_libs "$@")"
+  if [[ -n "$missing" ]]; then
+    deps_note="These libraries are still missing: $(tr '\n' ' ' <<<"$missing")
+Install them with: ${bold}$shown${reset}"
+  fi
+}
+
+snrt="$prefix/libexec/sonata/snrt"
+[[ "$os" == "Windows" ]] && snrt="$snrt.exe"
+setup_libraries "$prefix/bin/$exe" "$snrt"
+
+if ! "$prefix/bin/$exe" --version >/dev/null 2>&1; then
+  # Missing libraries are explained at the end; the rest of the install
+  # (PATH) is still worth doing.
+  [[ -n "$deps_note" ]] || die "installed $exe doesn't run"
+fi
 
 # PATH ///////////////////////////////////////////////
 
@@ -229,6 +484,13 @@ else
 fi
 
 echo
+if [[ -n "$deps_note" ]] && ! "$prefix/bin/$exe" --version >/dev/null 2>&1; then
+  echo "${green}Sonata ${tag:-} installed${reset}, but sn won't start until its libraries are."
+  echo "$deps_note"
+  [[ -n "$path_note" ]] && echo "$path_note"
+  exit 0
+fi
 echo "${green}Sonata ${tag:-} installed:${reset} $("$prefix/bin/$exe" --version 2>/dev/null | head -n 1)"
+[[ -n "$deps_note" ]] && echo "$deps_note"
 [[ -n "$path_note" ]] && echo "$path_note"
 echo "Run ${bold}sn --help${reset} to get started."
