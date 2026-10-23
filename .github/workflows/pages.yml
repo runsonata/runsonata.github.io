@@ -27,7 +27,7 @@ jobs:
       - name: Assemble site
         run: |
           mkdir _site
-          cp -R index.html 404.html 500.html install.sh install.ps1 static discord _site/
+          cp -R index.html 404.html 500.html install.sh install.ps1 sitemap.xml robots.txt static discord _site/
 
       - uses: actions/upload-pages-artifact@v3
         with:
