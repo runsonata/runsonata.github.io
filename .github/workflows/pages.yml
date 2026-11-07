@@ -1,0 +1,82 @@
+name: Pages
+
+# Deploys the landing page and install scripts to sonata.5418.org (set as the
+# custom domain in this repository's Pages settings). runsonata/docs is a
+# project site, so it appears under the same domain at /docs.
+#
+# The install scripts are checked first: everyone who installs Sonata runs
+# them straight from here.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  install-scripts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      # A fake release served from disk, laid out like GitHub's, so this needs
+      # no real release. sh is dash here, which catches anything non-POSIX.
+      - name: install.sh installs, and refuses a bad checksum
+        run: |
+          work="$RUNNER_TEMP/fake"
+          rel="$work/release/latest/download"
+          mkdir -p "$rel" "$work/pkg/sonata-linux-x64/bin"
+          printf '#!/bin/sh\necho "Sonata 9.9.9"\n' > "$work/pkg/sonata-linux-x64/bin/sn"
+          chmod +x "$work/pkg/sonata-linux-x64/bin/sn"
+          tar -czf "$rel/sonata-linux-x64.tar.gz" -C "$work/pkg" sonata-linux-x64
+          (cd "$rel" && sha256sum sonata-* > SHA256SUMS)
+          export SONATA_DOWNLOAD_URL="file://$work/release" HOME="$work/home" SHELL=/bin/bash
+
+          sh install.sh
+          "$HOME/.sonata/bin/sn" --version
+          grep -q '.sonata/bin' "$HOME/.bashrc"
+
+          echo corrupt >> "$rel/sonata-linux-x64.tar.gz"
+          if sh install.sh; then
+            echo "::error::install.sh accepted an archive with the wrong checksum"
+            exit 1
+          fi
+
+      - name: install.ps1 parses
+        shell: pwsh
+        run: |
+          $errors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile("$PWD/install.ps1", [ref]$null, [ref]$errors) | Out-Null
+          if ($errors) { $errors | ForEach-Object { Write-Error $_.ToString() }; exit 1 }
+
+  deploy:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: install-scripts
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Collect the site
+        run: |
+          mkdir _site
+          rsync -a --exclude '.*' --exclude _site --exclude README.md --exclude LICENSE ./ _site/
+
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: _site
+
+      - id: deployment
+        uses: actions/deploy-pages@v4
